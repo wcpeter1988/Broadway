@@ -787,15 +787,15 @@ var MP4Player = (function reader() {
       reuseMemory: true,
       webgl: webgl,
       size: {
-        width: 640,
-        height: 368
+        width: 1280,
+        height: 720
       }
     });
     
     this.webgl = this.avc.webgl;
     
     var self = this;
-    this.avc.onPictureDecoded = function(){
+    this.avc.onPictureDecoded = function(buf, width, height, infos){
       updateStatistics.call(self);
     };
     

@@ -1,0 +1,52 @@
+<html>
+<head>
+</head>
+<body>
+  <script type="text/javascript" src="Decoder.js"></script>
+  <script type="text/javascript" src="stream.js"></script>
+  <script type="text/javascript" src="mp4.js"></script>
+  <script type="text/javascript" src="MP4Decoder.js"></script>
+  <script type="text/javascript">
+
+    function getData(mp4) {
+      return new Promise(function(resolve, reject) {
+        const req = new XMLHttpRequest();
+        req.open("GET", mp4, true);
+        req.responseType = "arraybuffer";
+
+        req.onload = (event) => {
+          resolve(req.response);
+        };
+        req.onerror = () => {
+          reject(Error('fail to get data ' + mp4));
+        };
+        req.send(null);
+      });
+    }
+
+    getData('720p_color.mp4').then(function(rgbData) {
+      getData('720p_alpha.mp4').then(function (alphaData) {
+        var canvas = document.getElementById('debug');
+        var player = new MP4Player2(undefined, false, false, undefined);
+        player.load(rgbData, alphaData);
+        var startTime = 0;
+
+        time = 0;
+        setInterval(()=> {
+          const current = new Date();
+          if (startTime == 0) {
+            startTime = current.getTime();
+          }
+          player.seek(current.getTime() - startTime).then((rgba)=>{
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(rgba, 0, 0);
+          });
+        }, 30);
+      });
+    });
+
+  </script>
+  <div id="info" width="1280" height="720"></div>
+  <canvas id="debug" width="1280" height="720"></canvas>
+</body>
+</html>

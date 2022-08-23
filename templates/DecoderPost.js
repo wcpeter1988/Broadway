@@ -25,6 +25,7 @@
     
     resultModule.onRuntimeInitialized = function(){
       moduleReady(resultModule);
+      DecoderModule = resultModule;
     };
     return function(callback){
       if (moduleIsReady){
@@ -100,6 +101,7 @@
       
       if (doInfo){
         infos[0].finishDecoding = nowValue();
+        infos[0].ptr = $buffer;
       };
       this.onPictureDecoded(buffer, width, height, infos);
     }.bind(this);
