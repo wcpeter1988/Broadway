@@ -38,8 +38,6 @@
             startTime = current.getTime();
           }
           player.seek(current.getTime() - startTime).then((rgba)=>{
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(rgba, 0, 0);
           });
         }, 30);
       });
