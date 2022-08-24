@@ -35,9 +35,7 @@ var MP4Decoder = (function reader() {
 
             var videoTrack = this._reader.tracks[1];
             this._length = videoTrack.getTotalTimeInSeconds();
-            console.log(this._length);
             this._sampleSize = videoTrack.getSampleCount();
-            console.log(this._sampleSize);
 
             var avc = videoTrack.trak.mdia.minf.stbl.stsd.avc1.avcC;
             var sps = avc.sps[0];
