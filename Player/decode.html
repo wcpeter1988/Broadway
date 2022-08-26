@@ -1,6 +1,8 @@
 <html>
+
 <head>
 </head>
+
 <body>
   <script type="text/javascript" src="Decoder.js"></script>
   <script type="text/javascript" src="stream.js"></script>
@@ -9,7 +11,7 @@
   <script type="text/javascript">
 
     function getData(mp4) {
-      return new Promise(function(resolve, reject) {
+      return new Promise(function (resolve, reject) {
         const req = new XMLHttpRequest();
         req.open("GET", mp4, true);
         req.responseType = "arraybuffer";
@@ -24,7 +26,7 @@
       });
     }
 
-    getData('720p_color.mp4').then(function(rgbData) {
+    getData('720p_color.mp4').then(function (rgbData) {
       getData('720p_alpha.mp4').then(function (alphaData) {
         var canvas = document.getElementById('debug');
         var player = new MP4Player2(undefined, false, false, undefined);
@@ -32,12 +34,14 @@
         var startTime = 0;
 
         time = 0;
-        setInterval(()=> {
+        setInterval(() => {
           const current = new Date();
           if (startTime == 0) {
             startTime = current.getTime();
           }
-          player.seek(current.getTime() - startTime).then((rgba)=>{
+          var cur = current.getTime();
+          player.seek(cur - startTime).then((rgba) => {
+            // console.log(Date.now() - cur);
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.drawImage(rgba, 0, 0);
@@ -50,4 +54,5 @@
   <div id="info" width="1280" height="720"></div>
   <canvas id="debug" width="1280" height="720"></canvas>
 </body>
+
 </html>

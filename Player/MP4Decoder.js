@@ -10,12 +10,24 @@ var MP4Decoder = (function reader() {
             decoder.ctx = ctx;
         }
 
+        this.lastFrame = {}
+
         var onPictureDecoded = function (buffer, width, height, infos) {
             if (infos && infos.length > 0) {
                 const info = infos[0];
+                this.lastFrame = {image: {data: buffer, width: width, height: height}, index: info.index};
                 if (info.hasOwnProperty('resolve')) {
-                    info.resolve({image: {data: buffer, width: width, height: height}, index: info.index});
+                    if (this.lastFrame == {}) {
+                        console.log('test');
+                    }
+                    info.resolve(this.lastFrame);
                 }
+                else {
+                    console.log('nothing');
+                }
+            }
+            else {
+                console.log('nothing');
             }
         }
 
@@ -52,30 +64,48 @@ var MP4Decoder = (function reader() {
         },
 
         decodeSeq: function (sample, resolve, reject) {
+            var decoder = this.decoder;
+            if (this.lastSeek == sample && decoder.lastFrame != undefined) {
+                resolve(decoder.lastFrame);
+                return;
+            }
+
             if (this.lastSeek > sample) {
                 this.lastSeek = 0;
             }
 
             var videoTrack = this.videoTrack();
-            var decoder = this.decoder;
-            while (this.lastSeek < sample) {
+            while (this.lastSeek < sample + 1) {
                 decoder.infoAr.push({ finishDecoding: 0, index: this.lastSeek, resolve: resolve, reject: reject });
                 videoTrack.getSampleNALUnits(this.lastSeek).forEach(function (nal) {
                     decoder.decode(nal);
                 });
+
+                if (this.lastSeek == sample) {
+                    break;
+                }
+
                 this.lastSeek += 1;
             }
         },
 
-        seek: function (offsetInMS) {
+        getSample: function (offsetInMS) {
             var videoTrack = this.videoTrack();
             var offset = (offsetInMS / 1000.0) % this._length;
             var sample = videoTrack.timeToSample(videoTrack.secondsToTime(offset));
+            return sample;
+        },
 
+        seekSample: function (sample) {
             var player = this;
             return new Promise((resolve, reject) => {
                 player.decodeSeq(sample, resolve, reject);
             });
+        },
+
+        seek: function (offsetInMS) {
+            var sample = this.getSample(offsetInMS);
+            this.seekSample(sample);
         }
     }
 
@@ -119,11 +149,17 @@ var MP4Player2 = (function reader() {
         },
 
         lastSeek: 0,
+        lastFrame: undefined,
 
         seek: function (offsetInMS) {
-            var promises = [this._rgbDecoder.seek(offsetInMS)];
+            var sample = this._rgbDecoder.getSample(offsetInMS);
+            if (this.lastSeek == sample && this.lastFrame != undefined) {
+                return this.lastFrame;
+            }
+
+            var promises = [this._rgbDecoder.seekSample(sample)];
             if (this._alphaDecoder) {
-                promises.push(this._alphaDecoder.seek(offsetInMS));
+                promises.push(this._alphaDecoder.seekSample(sample));
             }
 
             return Promise.all(promises).then(imgs => {
@@ -139,13 +175,16 @@ var MP4Player2 = (function reader() {
 
                     const rgbaptr = DecoderModule._malloc(width * height * 4);
                     DecoderModule._NV12Alpha2RGBA(width, height, nv12ptr, alphaptr, rgbaptr);
-                    var newImg = new Uint8Array(DecoderModule.HEAPU8.buffer, rgbaptr, width * height * 4);
-                    var imgData = new ImageData(new Uint8ClampedArray(newImg), width, height);
+                    var newImg = new Uint8ClampedArray(DecoderModule.HEAPU8.buffer, rgbaptr, width * height * 4);
+                    var imgData = new ImageData(newImg, width, height);
 
                     DecoderModule._free(nv12ptr);
                     DecoderModule._free(alphaptr);
                     DecoderModule._free(rgbaptr);
-                    return createImageBitmap(imgData);
+                    this.lastSeek = sample;
+                    this.lastFrame = createImageBitmap(imgData);
+
+                    return this.lastFrame;
                 }
             });
         }

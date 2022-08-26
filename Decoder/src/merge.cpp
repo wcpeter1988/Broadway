@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cstdio>
 
-extern "C" void RGBAlpha2RGBA(const uint32_t width, const uint32_t height, const uint8_t* rgbx, const uint8_t* alpha, uint8_t* rgba)
+extern "C" void RGBAlpha2RGBA(const uint32_t width, const uint32_t height, const uint8_t *rgbx, const uint8_t *alpha, uint8_t *rgba)
 {
     memcpy(rgba, rgbx, width * height * 4);
     for (int p = 0; p < width * height; p++)
@@ -13,22 +13,22 @@ extern "C" void RGBAlpha2RGBA(const uint32_t width, const uint32_t height, const
     }
 }
 
-#define CLIP(X) ( (X) > 255 ? 255 : (X) < 0 ? 0 : X)
+#define CLIP(X) ((X) > 255 ? 255 : (X))
 
-#define C(Y) ( (Y) - 16  )
-#define D(U) ( (U) - 128 )
-#define E(V) ( (V) - 128 )
+#define C(Y) ((Y)-16)
+#define D(U) ((U)-128)
+#define E(V) ((V)-128)
 
-#define YUV2R(Y, U, V) CLIP(( 1192 * C(Y)            + 1634 * E(V) + 512) >> 10)
-#define YUV2G(Y, U, V) CLIP(( 1192 * C(Y) - 400 * D(U) - 832 * E(V) + 512) >> 10)
-#define YUV2B(Y, U, V) CLIP(( 1192 * C(Y) + 2066 * D(U)              + 512) >> 10)
+#define YUV2R(Y, U, V) CLIP((1192 * C(Y) + 1634 * E(V) + 512) >> 10)
+#define YUV2G(Y, U, V) CLIP((1192 * C(Y) - 400 * D(U) - 832 * E(V) + 512) >> 10)
+#define YUV2B(Y, U, V) CLIP((1192 * C(Y) + 2066 * D(U) + 512) >> 10)
 
-extern "C" void NV12Alpha2RGBA(const uint32_t width, const uint32_t height, const uint8_t* nv12, const uint8_t* alpha, uint8_t* rgba)
+extern "C" void NV12Alpha2RGBA(const uint32_t width, const uint32_t height, const uint8_t *nv12, const uint8_t *alpha, uint8_t *rgba)
 {
-    const uint8_t* lumaPtr = nv12;
-    const uint8_t* chromaUPtr = nv12 + width * height;
-    const uint8_t* chromaVPtr = nv12 + width * height + ((width * height) >> 2);
-    const uint8_t* alphaPtr = alpha;
+    const uint8_t *lumaPtr = nv12;
+    const uint8_t *chromaUPtr = nv12 + width * height;
+    const uint8_t *chromaVPtr = nv12 + width * height + ((width * height) >> 2);
+    const uint8_t *alphaPtr = alpha;
 
     const uint32_t lumaStride = width;
     const uint32_t chromaStride = width >> 1;
@@ -59,34 +59,49 @@ extern "C" void NV12Alpha2RGBA(const uint32_t width, const uint32_t height, cons
             auto u = chromaUScanline[w];
             auto v = chromaVScanline[w];
 
-            dstScanline00[0] = YUV2R(y00, u, v);
-            dstScanline00[1] = YUV2G(y00, u, v);
-            dstScanline00[2] = YUV2B(y00, u, v);
-            dstScanline00[3] = CLIP(((alphaScanline0[(w << 1)] - 16) * 298) >> 8);
+            auto ev = E(v);
+            auto du = D(u);
+            auto vr = 1634 * ev;
+            auto vug = -832 * ev - 400 * du;
+            auto ub = 2066 * du;
 
-            dstScanline00[4] = YUV2R(y01, u, v);
-            dstScanline00[5] = YUV2G(y01, u, v);
-            dstScanline00[6] = YUV2B(y01, u, v);
-            dstScanline00[7] = CLIP(((alphaScanline0[(w << 1) + 1] - 16) * 298) >> 8);
-
-            dstScanline10[0] = YUV2R(y10, u, v);
-            dstScanline10[1] = YUV2G(y10, u, v);
-            dstScanline10[2] = YUV2B(y10, u, v);
-            dstScanline10[3] = CLIP(((alphaScanline1[(w << 1)] - 16) * 298) >> 8);
-
-            dstScanline10[4] = YUV2R(y11, u, v);
-            dstScanline10[5] = YUV2G(y11, u, v);
-            dstScanline10[6] = YUV2B(y11, u, v);
-            dstScanline10[7] = CLIP(((alphaScanline1[(w << 1) + 1] - 16) * 298) >> 8);
+            {
+                auto y00w = 1192 * C(y00) + 512;
+                dstScanline00[0] = CLIP((y00w + vr) >> 10);
+                dstScanline00[1] = CLIP((y00w + vug) >> 10);
+                dstScanline00[2] = CLIP((y00w + ub) >> 10);
+                dstScanline00[3] = CLIP(((alphaScanline0[(w << 1)] - 16) * 298 + 512) >> 8);
+            }
+            {
+                auto y01w = 1192 * C(y01) + 512;
+                dstScanline00[4] = CLIP((y01w + vr) >> 10);
+                dstScanline00[5] = CLIP((y01w + vug) >> 10);
+                dstScanline00[6] = CLIP((y01w + ub) >> 10);
+                dstScanline00[7] = CLIP(((alphaScanline0[(w << 1) + 1] - 16) * 298 + 512) >> 8);
+            }
+            {
+                auto y10w = 1192 * C(y10) + 512;
+                dstScanline10[0] = CLIP((y10w + vr) >> 10);
+                dstScanline10[1] = CLIP((y10w + vug) >> 10);
+                dstScanline10[2] = CLIP((y10w + ub) >> 10);
+                dstScanline10[3] = CLIP(((alphaScanline1[(w << 1)] - 16) * 298 + 512) >> 8);
+            }
+            {
+                auto y11w = 1192 * C(y11) + 512;
+                dstScanline10[4] = CLIP((y11w + vr) >> 10);
+                dstScanline10[5] = CLIP((y11w + vug) >> 10);
+                dstScanline10[6] = CLIP((y11w + ub) >> 10);
+                dstScanline10[7] = CLIP(((alphaScanline1[(w << 1) + 1] - 16) * 298 + 512) >> 8);
+            }
         }
     }
 }
 
-extern "C" void NV122RGBA(const uint32_t width, const uint32_t height, const uint8_t* nv12, uint8_t* rgba)
+extern "C" void NV122RGBA(const uint32_t width, const uint32_t height, const uint8_t *nv12, uint8_t *rgba)
 {
-    const uint8_t* lumaPtr = nv12;
-    const uint8_t* chromaUPtr = nv12 + width * height;
-    const uint8_t* chromaVPtr = nv12 + width * height + ((width * height) >> 2);
+    const uint8_t *lumaPtr = nv12;
+    const uint8_t *chromaUPtr = nv12 + width * height;
+    const uint8_t *chromaVPtr = nv12 + width * height + ((width * height) >> 2);
 
     const uint32_t lumaStride = width;
     const uint32_t chromaStride = width >> 1;
@@ -114,25 +129,40 @@ extern "C" void NV122RGBA(const uint32_t width, const uint32_t height, const uin
             auto u = chromaUScanline[w];
             auto v = chromaVScanline[w];
 
-            dstScanline00[0] = YUV2R(y00, u, v);
-            dstScanline00[1] = YUV2G(y00, u, v);
-            dstScanline00[2] = YUV2B(y00, u, v);
-            dstScanline00[3] = 255;
+            auto ev = E(v);
+            auto du = D(u);
+            auto vr = 1634 * ev;
+            auto vug = -832 * ev - 400 * du;
+            auto ub = 2066 * du;
 
-            dstScanline00[4] = YUV2R(y01, u, v);
-            dstScanline00[5] = YUV2G(y01, u, v);
-            dstScanline00[6] = YUV2B(y01, u, v);
-            dstScanline00[7] = 255;
-
-            dstScanline10[0] = YUV2R(y10, u, v);
-            dstScanline10[1] = YUV2G(y10, u, v);
-            dstScanline10[2] = YUV2B(y10, u, v);
-            dstScanline10[3] = 255;
-
-            dstScanline10[4] = YUV2R(y11, u, v);
-            dstScanline10[5] = YUV2G(y11, u, v);
-            dstScanline10[6] = YUV2B(y11, u, v);
-            dstScanline10[7] = 255;
+            {
+                auto y00w = 1192 * C(y00) + 512;
+                dstScanline00[0] = CLIP((y00w + vr) >> 10);
+                dstScanline00[1] = CLIP((y00w + vug) >> 10);
+                dstScanline00[2] = CLIP((y00w + ub) >> 10);
+                dstScanline00[3] = 255;
+            }
+            {
+                auto y01w = 1192 * C(y01) + 512;
+                dstScanline00[4] = CLIP((y01w + vr) >> 10);
+                dstScanline00[5] = CLIP((y01w + vug) >> 10);
+                dstScanline00[6] = CLIP((y01w + ub) >> 10);
+                dstScanline00[7] = 255;
+            }
+            {
+                auto y10w = 1192 * C(y10) + 512;
+                dstScanline10[0] = CLIP((y10w + vr) >> 10);
+                dstScanline10[1] = CLIP((y10w + vug) >> 10);
+                dstScanline10[2] = CLIP((y10w + ub) >> 10);
+                dstScanline10[3] = 255;
+            }
+            {
+                auto y11w = 1192 * C(y11) + 512;
+                dstScanline10[4] = CLIP((y11w + vr) >> 10);
+                dstScanline10[5] = CLIP((y11w + vug) >> 10);
+                dstScanline10[6] = CLIP((y11w + ub) >> 10);
+                dstScanline10[7] = 255;
+            }
         }
     }
 }
